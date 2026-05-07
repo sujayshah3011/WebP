@@ -1,8 +1,32 @@
 {
-  "name": "webp-converter",
+  "name": "webp-forge",
   "version": "1.0.0",
-  "description": "Production JPG/PNG to WebP converter with bulk API support",
+  "description": "⚡ The fastest self-hosted image to WebP converter. Drag, drop, done. Supports JPG, PNG, GIF, BMP, TIFF, DNG, HEIC with bulk conversion, REST API, and ZIP download.",
   "main": "server.js",
+  "keywords": [
+    "webp",
+    "image-converter",
+    "heic",
+    "heif",
+    "image-optimization",
+    "bulk-converter",
+    "self-hosted",
+    "sharp",
+    "rest-api",
+    "drag-and-drop",
+    "batch-processing",
+    "image-compression"
+  ],
+  "author": "sujayshah3011",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/sujayshah3011/WebP.git"
+  },
+  "homepage": "https://github.com/sujayshah3011/WebP#readme",
+  "bugs": {
+    "url": "https://github.com/sujayshah3011/WebP/issues"
+  },
   "scripts": {
     "start": "node server.js",
     "dev": "nodemon server.js"

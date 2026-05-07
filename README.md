@@ -8,7 +8,7 @@
 [![Node.js](https://img.shields.io/badge/Node.js-18%2B-339933?style=flat-square&logo=node.js&logoColor=white)](https://nodejs.org)
 [![Powered by Sharp](https://img.shields.io/badge/Powered%20by-Sharp%20%2F%20libvips-ff6b35?style=flat-square)](https://sharp.pixelplumbing.com)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=flat-square)](http://makeapullrequest.com)
-[![GitHub Stars](https://img.shields.io/github/stars/sujayshah3011/webp?style=flat-square&logo=github)](https://github.com/sujayshah3011/webp/stargazers)
+[![GitHub Stars](https://img.shields.io/github/stars/sujayshah3011/WebP?style=flat-square&logo=github)](https://github.com/sujayshah3011/WebP/stargazers)
 
 <br/>
 
@@ -57,8 +57,8 @@ Most online converters upload your photos to someone else's cloud. WebP Forge ru
 
 ```bash
 # 1. Clone the repo
-git clone https://github.com/YOUR_USERNAME/webp-forge.git
-cd webp-forge
+git clone https://github.com/sujayshah3011/WebP.git
+cd WebP
 
 # 2. Install dependencies
 npm install
@@ -249,7 +249,7 @@ Contributions are hugely appreciated. Here's how:
 
 ## 📄 License
 
-MIT © [YOUR_USERNAME](https://github.com/YOUR_USERNAME)
+MIT © [sujayshah3011](https://github.com/sujayshah3011)
 
 See [`LICENSE`](LICENSE) for full text.
 

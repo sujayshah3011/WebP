@@ -1,0 +1,1541 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>WebP Forge — Image Converter</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,300;0,400;0,500;1,400&family=Syne:wght@400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      /* ── Reset & Base ─────────────────────────────────────────────────────────── */
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+      :root {
+        --bg: #0a0a0b;
+        --surface: #111113;
+        --card: #18181c;
+        --border: #2a2a32;
+        --border2: #38383f;
+        --text: #f0f0f2;
+        --muted: #8a8a96;
+        --dim: #55555f;
+        --accent: #e8ff4d;
+        --accent2: #b8d400;
+        --green: #22d984;
+        --red: #ff5a5a;
+        --amber: #ffb84d;
+        --blue: #4db8ff;
+        --mono: "DM Mono", monospace;
+        --display: "Syne", sans-serif;
+        --radius: 10px;
+        --radius-lg: 16px;
+        --shadow: 0 4px 24px rgba(0, 0, 0, 0.5);
+      }
+
+      html {
+        scroll-behavior: smooth;
+      }
+      body {
+        background: var(--bg);
+        color: var(--text);
+        font-family: var(--mono);
+        font-size: 14px;
+        line-height: 1.6;
+        min-height: 100vh;
+        overflow-x: hidden;
+      }
+
+      /* ── Noise texture overlay ───────────────────────────────────────────────── */
+      body::before {
+        content: "";
+        position: fixed;
+        inset: 0;
+        background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
+        pointer-events: none;
+        z-index: 0;
+        opacity: 0.4;
+      }
+
+      /* ── Grid lines ──────────────────────────────────────────────────────────── */
+      body::after {
+        content: "";
+        position: fixed;
+        inset: 0;
+        background-image:
+          linear-gradient(rgba(255, 255, 255, 0.015) 1px, transparent 1px),
+          linear-gradient(
+            90deg,
+            rgba(255, 255, 255, 0.015) 1px,
+            transparent 1px
+          );
+        background-size: 48px 48px;
+        pointer-events: none;
+        z-index: 0;
+      }
+
+      /* ── Layout ──────────────────────────────────────────────────────────────── */
+      .app {
+        position: relative;
+        z-index: 1;
+        max-width: 960px;
+        margin: 0 auto;
+        padding: 0 24px 80px;
+      }
+
+      /* ── Header ──────────────────────────────────────────────────────────────── */
+      header {
+        display: flex;
+        align-items: flex-end;
+        justify-content: space-between;
+        padding: 40px 0 32px;
+        border-bottom: 1px solid var(--border);
+        margin-bottom: 40px;
+      }
+      .logo-block {
+      }
+      .logo {
+        font-family: var(--display);
+        font-size: 32px;
+        font-weight: 800;
+        letter-spacing: -0.03em;
+        color: var(--text);
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      .logo-badge {
+        background: var(--accent);
+        color: #0a0a0b;
+        font-family: var(--mono);
+        font-size: 10px;
+        font-weight: 500;
+        padding: 3px 7px;
+        border-radius: 4px;
+        letter-spacing: 0.08em;
+        align-self: flex-start;
+        margin-top: 4px;
+      }
+      .tagline {
+        font-size: 12px;
+        color: var(--muted);
+        margin-top: 4px;
+        letter-spacing: 0.04em;
+      }
+      .header-stat {
+        text-align: right;
+      }
+      .header-stat .val {
+        font-family: var(--display);
+        font-size: 28px;
+        font-weight: 700;
+        color: var(--accent);
+      }
+      .header-stat .lbl {
+        font-size: 11px;
+        color: var(--dim);
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+      }
+
+      /* ── Settings Panel ──────────────────────────────────────────────────────── */
+      .settings-panel {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-lg);
+        padding: 24px 28px;
+        margin-bottom: 24px;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 24px 40px;
+      }
+      @media (max-width: 600px) {
+        .settings-panel {
+          grid-template-columns: 1fr;
+        }
+      }
+      .setting-group {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+      .setting-label {
+        font-size: 11px;
+        color: var(--muted);
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+      .setting-label span {
+        font-family: var(--display);
+        font-size: 15px;
+        color: var(--accent);
+        font-weight: 600;
+        letter-spacing: 0;
+        text-transform: none;
+      }
+      input[type="range"] {
+        -webkit-appearance: none;
+        appearance: none;
+        width: 100%;
+        height: 3px;
+        background: var(--border);
+        border-radius: 2px;
+        outline: none;
+        cursor: pointer;
+      }
+      input[type="range"]::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        appearance: none;
+        width: 16px;
+        height: 16px;
+        border-radius: 50%;
+        background: var(--accent);
+        cursor: pointer;
+        box-shadow: 0 0 0 3px rgba(232, 255, 77, 0.15);
+        transition: box-shadow 0.15s;
+      }
+      input[type="range"]::-webkit-slider-thumb:hover {
+        box-shadow: 0 0 0 5px rgba(232, 255, 77, 0.25);
+      }
+      .quality-labels {
+        display: flex;
+        justify-content: space-between;
+        font-size: 10px;
+        color: var(--dim);
+      }
+
+      .toggle-row {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+      .toggle {
+        position: relative;
+        width: 40px;
+        height: 22px;
+        background: var(--border);
+        border-radius: 11px;
+        cursor: pointer;
+        transition: background 0.2s;
+        flex-shrink: 0;
+      }
+      .toggle input {
+        opacity: 0;
+        width: 0;
+        height: 0;
+      }
+      .toggle-knob {
+        position: absolute;
+        top: 3px;
+        left: 3px;
+        width: 16px;
+        height: 16px;
+        background: var(--muted);
+        border-radius: 50%;
+        transition:
+          transform 0.2s,
+          background 0.2s;
+      }
+      .toggle input:checked ~ .toggle-knob {
+        transform: translateX(18px);
+        background: var(--accent);
+      }
+      .toggle input:checked ~ .toggle {
+        background: rgba(232, 255, 77, 0.2);
+      }
+      .toggle-lbl {
+        font-size: 12px;
+        color: var(--muted);
+      }
+
+      .resize-inputs {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+      }
+      .resize-inputs input[type="number"] {
+        background: var(--card);
+        border: 1px solid var(--border);
+        color: var(--text);
+        font-family: var(--mono);
+        font-size: 13px;
+        padding: 8px 12px;
+        border-radius: var(--radius);
+        outline: none;
+        width: 100%;
+        transition: border-color 0.15s;
+      }
+      .resize-inputs input[type="number"]:focus {
+        border-color: var(--accent);
+      }
+      .resize-inputs input[type="number"]::placeholder {
+        color: var(--dim);
+      }
+
+      /* ── Drop Zone ───────────────────────────────────────────────────────────── */
+      .drop-zone {
+        border: 1.5px dashed var(--border2);
+        border-radius: var(--radius-lg);
+        padding: 60px 24px;
+        text-align: center;
+        cursor: pointer;
+        position: relative;
+        transition:
+          border-color 0.2s,
+          background 0.2s;
+        background: var(--surface);
+        margin-bottom: 24px;
+        overflow: hidden;
+      }
+      .drop-zone::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: radial-gradient(
+          ellipse at center,
+          rgba(232, 255, 77, 0.03) 0%,
+          transparent 70%
+        );
+        pointer-events: none;
+      }
+      .drop-zone.over {
+        border-color: var(--accent);
+        background: rgba(232, 255, 77, 0.04);
+      }
+      .drop-zone input[type="file"] {
+        position: absolute;
+        inset: 0;
+        opacity: 0;
+        cursor: pointer;
+        width: 100%;
+        height: 100%;
+      }
+      .drop-icon {
+        width: 56px;
+        height: 56px;
+        margin: 0 auto 16px;
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 22px;
+        transition:
+          border-color 0.2s,
+          transform 0.2s;
+      }
+      .drop-zone.over .drop-icon {
+        border-color: var(--accent);
+        transform: scale(1.08);
+      }
+      .drop-title {
+        font-family: var(--display);
+        font-size: 18px;
+        font-weight: 600;
+        color: var(--text);
+        margin-bottom: 6px;
+      }
+      .drop-sub {
+        font-size: 12px;
+        color: var(--dim);
+      }
+      .drop-sub strong {
+        color: var(--muted);
+      }
+
+      /* ── Stats Bar ───────────────────────────────────────────────────────────── */
+      .stats-bar {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 12px;
+        margin-bottom: 24px;
+        display: none;
+      }
+      .stat {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 14px 16px;
+        position: relative;
+        overflow: hidden;
+      }
+      .stat::before {
+        content: attr(data-num);
+        position: absolute;
+        right: -8px;
+        top: -8px;
+        font-family: var(--display);
+        font-size: 60px;
+        font-weight: 800;
+        color: rgba(255, 255, 255, 0.02);
+        pointer-events: none;
+        line-height: 1;
+        user-select: none;
+      }
+      .stat-l {
+        font-size: 10px;
+        color: var(--dim);
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        margin-bottom: 4px;
+      }
+      .stat-v {
+        font-family: var(--display);
+        font-size: 22px;
+        font-weight: 700;
+        color: var(--text);
+      }
+      .stat-v.green {
+        color: var(--green);
+      }
+      .stat-v.accent {
+        color: var(--accent);
+      }
+
+      /* ── Action Buttons ──────────────────────────────────────────────────────── */
+      .actions {
+        display: flex;
+        gap: 10px;
+        margin-bottom: 28px;
+        align-items: center;
+        display: none;
+      }
+      .btn-primary {
+        background: var(--accent);
+        color: #0a0a0b;
+        border: none;
+        border-radius: var(--radius);
+        padding: 11px 24px;
+        font-family: var(--display);
+        font-size: 14px;
+        font-weight: 700;
+        cursor: pointer;
+        transition:
+          opacity 0.15s,
+          transform 0.1s;
+        letter-spacing: 0.01em;
+      }
+      .btn-primary:hover {
+        opacity: 0.88;
+      }
+      .btn-primary:active {
+        transform: scale(0.98);
+      }
+      .btn-primary:disabled {
+        opacity: 0.3;
+        cursor: not-allowed;
+      }
+      .btn-secondary {
+        background: transparent;
+        color: var(--text);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 10px 20px;
+        font-family: var(--mono);
+        font-size: 13px;
+        cursor: pointer;
+        transition:
+          border-color 0.15s,
+          background 0.15s;
+      }
+      .btn-secondary:hover {
+        border-color: var(--border2);
+        background: var(--surface);
+      }
+      .btn-secondary:disabled {
+        opacity: 0.35;
+        cursor: not-allowed;
+      }
+      .btn-ghost {
+        background: none;
+        border: none;
+        color: var(--dim);
+        font-family: var(--mono);
+        font-size: 12px;
+        cursor: pointer;
+        padding: 4px 8px;
+        margin-left: auto;
+        border-radius: 6px;
+        transition:
+          color 0.15s,
+          background 0.15s;
+      }
+      .btn-ghost:hover {
+        color: var(--red);
+        background: rgba(255, 90, 90, 0.08);
+      }
+      .spinner {
+        display: inline-block;
+        width: 14px;
+        height: 14px;
+        border: 2px solid rgba(10, 10, 11, 0.3);
+        border-top-color: #0a0a0b;
+        border-radius: 50%;
+        animation: spin 0.7s linear infinite;
+        vertical-align: middle;
+        margin-right: 6px;
+      }
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+
+      /* ── File Cards ──────────────────────────────────────────────────────────── */
+      #file-list {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+      .file-card {
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-lg);
+        overflow: hidden;
+        transition: border-color 0.2s;
+        animation: slideIn 0.25s ease forwards;
+      }
+      @keyframes slideIn {
+        from {
+          opacity: 0;
+          transform: translateY(8px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+      .file-card.done {
+        border-color: rgba(34, 217, 132, 0.2);
+      }
+      .file-card.error {
+        border-color: rgba(255, 90, 90, 0.25);
+      }
+      .file-card-top {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        padding: 14px 18px;
+      }
+      .thumb {
+        width: 52px;
+        height: 52px;
+        border-radius: 8px;
+        overflow: hidden;
+        background: var(--surface);
+        flex-shrink: 0;
+        position: relative;
+      }
+      .thumb img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+      }
+      .thumb-placeholder {
+        width: 100%;
+        height: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 20px;
+      }
+      .file-meta {
+        flex: 1;
+        min-width: 0;
+      }
+      .file-name {
+        font-family: var(--display);
+        font-size: 14px;
+        font-weight: 600;
+        color: var(--text);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        margin-bottom: 2px;
+      }
+      .file-sizes {
+        font-size: 12px;
+        color: var(--muted);
+      }
+      .file-sizes .arrow {
+        color: var(--dim);
+        margin: 0 4px;
+      }
+      .file-sizes .converted {
+        color: var(--green);
+        font-weight: 500;
+      }
+      .badge {
+        font-size: 11px;
+        font-weight: 500;
+        padding: 3px 9px;
+        border-radius: 99px;
+        flex-shrink: 0;
+        font-family: var(--mono);
+      }
+      .badge-pending {
+        background: rgba(138, 138, 150, 0.12);
+        color: var(--muted);
+      }
+      .badge-processing {
+        background: rgba(255, 184, 77, 0.12);
+        color: var(--amber);
+      }
+      .badge-done-great {
+        background: rgba(34, 217, 132, 0.12);
+        color: var(--green);
+      }
+      .badge-done-good {
+        background: rgba(77, 184, 255, 0.12);
+        color: var(--blue);
+      }
+      .badge-done-ok {
+        background: rgba(232, 255, 77, 0.12);
+        color: var(--accent);
+      }
+      .badge-error {
+        background: rgba(255, 90, 90, 0.12);
+        color: var(--red);
+      }
+      .card-dl-btn {
+        background: transparent;
+        border: 1px solid var(--border);
+        color: var(--text);
+        border-radius: var(--radius);
+        padding: 7px 14px;
+        font-family: var(--mono);
+        font-size: 12px;
+        cursor: pointer;
+        transition:
+          border-color 0.15s,
+          background 0.15s;
+        flex-shrink: 0;
+        white-space: nowrap;
+      }
+      .card-dl-btn:hover:not(:disabled) {
+        border-color: var(--green);
+        color: var(--green);
+        background: rgba(34, 217, 132, 0.06);
+      }
+      .card-dl-btn:disabled {
+        opacity: 0.25;
+        cursor: default;
+      }
+
+      /* ── Preview Row ─────────────────────────────────────────────────────────── */
+      .preview-row {
+        display: grid;
+        grid-template-columns: 1fr 1px 1fr;
+        border-top: 1px solid var(--border);
+      }
+      .preview-pane {
+        position: relative;
+        overflow: hidden;
+      }
+      .preview-pane img {
+        width: 100%;
+        height: 140px;
+        object-fit: cover;
+        display: block;
+      }
+      .preview-divider {
+        background: var(--border);
+      }
+      .preview-tag {
+        position: absolute;
+        top: 8px;
+        left: 8px;
+        font-size: 9px;
+        font-weight: 500;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        padding: 3px 7px;
+        border-radius: 5px;
+        font-family: var(--mono);
+      }
+      .tag-orig {
+        background: rgba(10, 10, 11, 0.7);
+        color: var(--muted);
+        border: 1px solid var(--border);
+      }
+      .tag-webp {
+        background: rgba(10, 10, 11, 0.7);
+        color: var(--green);
+        border: 1px solid rgba(34, 217, 132, 0.3);
+      }
+      .preview-size {
+        position: absolute;
+        bottom: 8px;
+        right: 8px;
+        font-size: 10px;
+        color: var(--muted);
+        background: rgba(10, 10, 11, 0.65);
+        padding: 2px 6px;
+        border-radius: 4px;
+      }
+
+      /* ── Error message ───────────────────────────────────────────────────────── */
+      .error-msg {
+        padding: 10px 18px;
+        font-size: 12px;
+        color: var(--red);
+        border-top: 1px solid var(--border);
+      }
+
+      /* ── Progress bar ────────────────────────────────────────────────────────── */
+      .progress-wrap {
+        height: 2px;
+        background: var(--border);
+        overflow: hidden;
+      }
+      .progress-fill {
+        height: 100%;
+        background: var(--accent);
+        transition: width 0.3s ease;
+        width: 0%;
+      }
+
+      /* ── API Docs section ────────────────────────────────────────────────────── */
+      .api-section {
+        margin-top: 60px;
+        border-top: 1px solid var(--border);
+        padding-top: 40px;
+      }
+      .section-title {
+        font-family: var(--display);
+        font-size: 22px;
+        font-weight: 700;
+        color: var(--text);
+        margin-bottom: 6px;
+        letter-spacing: -0.01em;
+      }
+      .section-sub {
+        font-size: 12px;
+        color: var(--dim);
+        margin-bottom: 28px;
+      }
+      .endpoint-card {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        margin-bottom: 12px;
+        overflow: hidden;
+      }
+      .endpoint-header {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 14px 18px;
+        cursor: pointer;
+        user-select: none;
+        transition: background 0.15s;
+      }
+      .endpoint-header:hover {
+        background: var(--card);
+      }
+      .method {
+        font-family: var(--display);
+        font-size: 11px;
+        font-weight: 700;
+        padding: 3px 8px;
+        border-radius: 5px;
+        letter-spacing: 0.05em;
+        flex-shrink: 0;
+      }
+      .method-post {
+        background: rgba(77, 184, 255, 0.15);
+        color: var(--blue);
+      }
+      .method-get {
+        background: rgba(34, 217, 132, 0.12);
+        color: var(--green);
+      }
+      .endpoint-path {
+        font-family: var(--mono);
+        font-size: 13px;
+        color: var(--text);
+      }
+      .endpoint-desc {
+        font-size: 12px;
+        color: var(--dim);
+        margin-left: auto;
+      }
+      .endpoint-body {
+        display: none;
+        padding: 0 18px 18px;
+        border-top: 1px solid var(--border);
+      }
+      .endpoint-body.open {
+        display: block;
+      }
+      .code-block {
+        background: #0d0d10;
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 14px 16px;
+        margin-top: 12px;
+        font-family: var(--mono);
+        font-size: 12px;
+        color: #b0b8c8;
+        overflow-x: auto;
+        white-space: pre;
+        position: relative;
+      }
+      .copy-btn {
+        position: absolute;
+        top: 8px;
+        right: 8px;
+        background: var(--card);
+        border: 1px solid var(--border);
+        color: var(--muted);
+        font-family: var(--mono);
+        font-size: 10px;
+        padding: 3px 8px;
+        border-radius: 5px;
+        cursor: pointer;
+        transition:
+          color 0.15s,
+          border-color 0.15s;
+      }
+      .copy-btn:hover {
+        color: var(--accent);
+        border-color: var(--accent);
+      }
+      .params-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 12px;
+        font-size: 12px;
+      }
+      .params-table th {
+        color: var(--dim);
+        text-transform: uppercase;
+        font-size: 10px;
+        letter-spacing: 0.06em;
+        padding: 6px 10px;
+        border-bottom: 1px solid var(--border);
+        text-align: left;
+      }
+      .params-table td {
+        padding: 8px 10px;
+        border-bottom: 1px solid var(--border);
+        color: var(--muted);
+        vertical-align: top;
+      }
+      .params-table td:first-child {
+        color: var(--accent);
+        font-weight: 500;
+        white-space: nowrap;
+      }
+      .params-table tr:last-child td {
+        border-bottom: none;
+      }
+
+      /* ── Toast ───────────────────────────────────────────────────────────────── */
+      .toast {
+        position: fixed;
+        bottom: 24px;
+        right: 24px;
+        background: var(--card);
+        border: 1px solid var(--border2);
+        border-radius: var(--radius);
+        padding: 12px 18px;
+        font-size: 13px;
+        color: var(--text);
+        box-shadow: var(--shadow);
+        z-index: 9999;
+        transform: translateY(80px);
+        opacity: 0;
+        transition:
+          transform 0.3s ease,
+          opacity 0.3s ease;
+        max-width: 320px;
+      }
+      .toast.show {
+        transform: translateY(0);
+        opacity: 1;
+      }
+      .toast.success {
+        border-color: rgba(34, 217, 132, 0.4);
+      }
+      .toast.error {
+        border-color: rgba(255, 90, 90, 0.4);
+      }
+
+      /* ── Empty state ─────────────────────────────────────────────────────────── */
+      #empty-hint {
+        text-align: center;
+        padding: 12px 0 4px;
+        font-size: 12px;
+        color: var(--dim);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="app">
+      <!-- Header -->
+      <header>
+        <div class="logo-block">
+          <div class="logo">
+            WebP Forge
+            <span class="logo-badge">v1.0</span>
+          </div>
+          <div class="tagline">
+            Sharp-powered · HEIC/HEIF support · Lossless & lossy · Bulk API · 100% local
+          </div>
+        </div>
+        <div class="header-stat">
+          <div class="val" id="total-converted">0</div>
+          <div class="lbl">images converted</div>
+        </div>
+      </header>
+
+      <!-- Settings -->
+      <div class="settings-panel">
+        <div class="setting-group">
+          <div class="setting-label">
+            Quality
+            <span id="q-display">82%</span>
+          </div>
+          <input
+            type="range"
+            id="quality"
+            min="1"
+            max="100"
+            value="82"
+            step="1"
+          />
+          <div class="quality-labels">
+            <span>Smallest</span><span>Balanced</span><span>Best</span>
+          </div>
+        </div>
+
+        <div class="setting-group">
+          <div class="setting-label">
+            Effort (compression speed)
+            <span id="e-display">4 / 6</span>
+          </div>
+          <input type="range" id="effort" min="0" max="6" value="4" step="1" />
+          <div class="quality-labels">
+            <span>Fastest</span><span></span><span>Smallest file</span>
+          </div>
+        </div>
+
+        <div class="setting-group">
+          <div class="setting-label">Options</div>
+          <div class="toggle-row">
+            <label class="toggle">
+              <input type="checkbox" id="lossless" />
+              <div class="toggle-knob"></div>
+            </label>
+            <span class="toggle-lbl"
+              >Lossless mode (ignores quality slider)</span
+            >
+          </div>
+          <div class="toggle-row" style="margin-top: 8px">
+            <label class="toggle">
+              <input type="checkbox" id="enable-resize" />
+              <div class="toggle-knob"></div>
+            </label>
+            <span class="toggle-lbl">Resize output</span>
+          </div>
+        </div>
+
+        <div
+          class="setting-group"
+          id="resize-group"
+          style="opacity: 0.3; pointer-events: none"
+        >
+          <div class="setting-label">Max dimensions (px)</div>
+          <div class="resize-inputs">
+            <input
+              type="number"
+              id="resize-w"
+              placeholder="Width"
+              min="1"
+              max="8000"
+            />
+            <input
+              type="number"
+              id="resize-h"
+              placeholder="Height"
+              min="1"
+              max="8000"
+            />
+          </div>
+          <div style="font-size: 11px; color: var(--dim); margin-top: 4px">
+            Preserves aspect ratio · won't upscale
+          </div>
+        </div>
+      </div>
+
+      <!-- Drop Zone -->
+      <div class="drop-zone" id="drop-zone">
+        <input
+          type="file"
+          id="file-input"
+          accept="image/jpeg,image/png,image/gif,image/bmp,image/tiff,image/webp,image/heic,image/heif,image/x-adobe-dng,.jpg,.jpeg,.png,.gif,.bmp,.tif,.tiff,.webp,.dng,.heic,.heif"
+          multiple
+        />
+        <div class="drop-icon">📂</div>
+        <div class="drop-title">Drop images here or click to browse</div>
+        <div class="drop-sub">
+          <strong>JPG, PNG, GIF, BMP, TIFF, DNG, HEIC</strong> &nbsp;·&nbsp; Up to 100
+          files, 50 MB each &nbsp;·&nbsp; Powered by Sharp on your server
+        </div>
+      </div>
+
+      <!-- Stats -->
+      <div class="stats-bar" id="stats-bar">
+        <div class="stat" data-num="1">
+          <div class="stat-l">Files queued</div>
+          <div class="stat-v" id="s-count">0</div>
+        </div>
+        <div class="stat" data-num="2">
+          <div class="stat-l">Original size</div>
+          <div class="stat-v" id="s-orig">—</div>
+        </div>
+        <div class="stat" data-num="3">
+          <div class="stat-l">Converted size</div>
+          <div class="stat-v green" id="s-conv">—</div>
+        </div>
+        <div class="stat" data-num="4">
+          <div class="stat-l">Space saved</div>
+          <div class="stat-v accent" id="s-pct">—</div>
+        </div>
+      </div>
+
+      <!-- Actions -->
+      <div class="actions" id="actions">
+        <button class="btn-primary" id="convert-btn">Convert All</button>
+        <button class="btn-secondary" id="dl-all-btn" disabled>
+          ⬇ Download ZIP
+        </button>
+        <button class="btn-ghost" id="clear-btn">Clear all</button>
+      </div>
+
+      <!-- File list -->
+      <div id="file-list"></div>
+      <div id="empty-hint"></div>
+
+      <!-- API Docs -->
+      <div class="api-section">
+        <div class="section-title">REST API</div>
+        <div class="section-sub">
+          Use the conversion engine programmatically — perfect for bulk
+          pipelines, CI/CD, or automation.
+        </div>
+
+        <!-- POST /api/convert -->
+        <div class="endpoint-card">
+          <div class="endpoint-header" onclick="toggleEndpoint(this)">
+            <span class="method method-post">POST</span>
+            <span class="endpoint-path">/api/convert</span>
+            <span class="endpoint-desc">Convert one or many images</span>
+          </div>
+          <div class="endpoint-body">
+            <table class="params-table">
+              <tr>
+                <th>Field</th>
+                <th>Type</th>
+                <th>Description</th>
+              </tr>
+              <tr>
+                <td>images</td>
+                <td>file[]</td>
+                <td>One or multiple image files (multipart/form-data)</td>
+              </tr>
+              <tr>
+                <td>quality</td>
+                <td>number</td>
+                <td>WebP quality 1–100. Default: 82</td>
+              </tr>
+              <tr>
+                <td>lossless</td>
+                <td>"true"/"false"</td>
+                <td>Enable lossless compression. Default: false</td>
+              </tr>
+              <tr>
+                <td>effort</td>
+                <td>number</td>
+                <td>Compression effort 0–6. Default: 4</td>
+              </tr>
+              <tr>
+                <td>resize</td>
+                <td>JSON string</td>
+                <td>{"width":1920,"height":1080,"fit":"inside"}</td>
+              </tr>
+            </table>
+            <div class="code-block" id="code-single">
+              <button class="copy-btn" onclick="copyCode('code-single')">
+                copy</button
+              >curl -X POST http://localhost:3000/api/convert \ -F
+              "images=@photo.jpg" \ -F "quality=85" \ -F "effort=5"
+            </div>
+            <div class="code-block" id="code-bulk">
+              <button class="copy-btn" onclick="copyCode('code-bulk')">
+                copy</button
+              ># Bulk — send multiple files at once curl -X POST
+              http://localhost:3000/api/convert \ -F "images=@img1.jpg" \ -F
+              "images=@img2.png" \ -F "images=@img3.jpg" \ -F "quality=82" \ -F
+              "resize={\"width\":1920}"
+            </div>
+            <div class="code-block" id="code-js">
+              <button class="copy-btn" onclick="copyCode('code-js')">
+                copy</button
+              >// JavaScript / Node.js const form = new FormData();
+              files.forEach(f => form.append('images', f));
+              form.append('quality', '85'); form.append('lossless', 'false');
+              const res = await fetch('http://localhost:3000/api/convert', {
+              method: 'POST', body: form }); const data = await res.json(); //
+              data.results[].downloadUrl → use to download each file
+              console.log(`Saved ${data.totalSavingsPercent}% overall`);
+            </div>
+          </div>
+        </div>
+
+        <!-- GET /api/download -->
+        <div class="endpoint-card">
+          <div class="endpoint-header" onclick="toggleEndpoint(this)">
+            <span class="method method-get">GET</span>
+            <span class="endpoint-path">/api/download/:filename</span>
+            <span class="endpoint-desc">Download a converted file</span>
+          </div>
+          <div class="endpoint-body">
+            <div class="code-block" id="code-dl">
+              <button class="copy-btn" onclick="copyCode('code-dl')">
+                copy</button
+              >curl -O http://localhost:3000/api/download/converted-abc123.webp
+            </div>
+          </div>
+        </div>
+
+        <!-- GET /api/download-zip -->
+        <div class="endpoint-card">
+          <div class="endpoint-header" onclick="toggleEndpoint(this)">
+            <span class="method method-get">GET</span>
+            <span class="endpoint-path">/api/download-zip</span>
+            <span class="endpoint-desc">Download batch as ZIP</span>
+          </div>
+          <div class="endpoint-body">
+            <div class="code-block" id="code-zip">
+              <button class="copy-btn" onclick="copyCode('code-zip')">
+                copy</button
+              >curl -O
+              "http://localhost:3000/api/download-zip?files=a.webp,b.webp,c.webp"
+            </div>
+          </div>
+        </div>
+
+        <!-- GET /api/health -->
+        <div class="endpoint-card">
+          <div class="endpoint-header" onclick="toggleEndpoint(this)">
+            <span class="method method-get">GET</span>
+            <span class="endpoint-path">/api/health</span>
+            <span class="endpoint-desc">Server health + Sharp version</span>
+          </div>
+          <div class="endpoint-body">
+            <div class="code-block" id="code-health">
+              <button class="copy-btn" onclick="copyCode('code-health')">
+                copy</button
+              >curl http://localhost:3000/api/health
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Toast -->
+    <div class="toast" id="toast"></div>
+
+    <script>
+      // ── State ─────────────────────────────────────────────────────────────────────
+      let files = [];
+      let totalConverted = parseInt(
+        localStorage.getItem("totalConverted") || "0",
+      );
+      let convertedFiles = [];
+      document.getElementById("total-converted").textContent = totalConverted;
+
+      // ── Settings ──────────────────────────────────────────────────────────────────
+      const qualitySlider = document.getElementById("quality");
+      const effortSlider = document.getElementById("effort");
+      const losslessChk = document.getElementById("lossless");
+      const enableResize = document.getElementById("enable-resize");
+      const resizeGroup = document.getElementById("resize-group");
+
+      qualitySlider.addEventListener(
+        "input",
+        () =>
+          (document.getElementById("q-display").textContent =
+            qualitySlider.value + "%"),
+      );
+      effortSlider.addEventListener(
+        "input",
+        () =>
+          (document.getElementById("e-display").textContent =
+            effortSlider.value + " / 6"),
+      );
+      enableResize.addEventListener("change", () => {
+        resizeGroup.style.opacity = enableResize.checked ? "1" : "0.3";
+        resizeGroup.style.pointerEvents = enableResize.checked
+          ? "auto"
+          : "none";
+      });
+
+      // ── Drop Zone ─────────────────────────────────────────────────────────────────
+      const dropZone = document.getElementById("drop-zone");
+      const fileInput = document.getElementById("file-input");
+      const allowedImageExts = new Set([
+        ".jpg",
+        ".jpeg",
+        ".png",
+        ".gif",
+        ".bmp",
+        ".tif",
+        ".tiff",
+        ".webp",
+        ".dng",
+      ]);
+
+      dropZone.addEventListener("dragover", (e) => {
+        e.preventDefault();
+        dropZone.classList.add("over");
+      });
+      dropZone.addEventListener("dragleave", () =>
+        dropZone.classList.remove("over"),
+      );
+      dropZone.addEventListener("drop", (e) => {
+        e.preventDefault();
+        dropZone.classList.remove("over");
+        addFiles([...e.dataTransfer.files]);
+      });
+      fileInput.addEventListener("change", () => {
+        addFiles([...fileInput.files]);
+        fileInput.value = "";
+      });
+
+      function addFiles(newFiles) {
+        const imgs = newFiles.filter((f) => {
+          if (f.type.startsWith("image/")) return true;
+          return allowedImageExts.has(
+            (f.name.match(/\.[^.]+$/) || [""])[0].toLowerCase(),
+          );
+        });
+        if (!imgs.length) {
+          showToast("No valid image files found.", "error");
+          return;
+        }
+        imgs.forEach((f) => {
+          const entry = {
+            id: Math.random().toString(36).slice(2),
+            file: f,
+            origUrl: URL.createObjectURL(f),
+            status: "pending",
+            result: null,
+          };
+          files.push(entry);
+          renderCard(entry);
+        });
+        updateUI();
+      }
+
+      // ── Card rendering ────────────────────────────────────────────────────────────
+      function renderCard(entry) {
+        const el = document.createElement("div");
+        el.className = "file-card";
+        el.id = "card-" + entry.id;
+        el.innerHTML = `
+    <div class="progress-wrap"><div class="progress-fill" id="prog-${entry.id}" style="width:0%"></div></div>
+    <div class="file-card-top">
+      <div class="thumb"><img src="${entry.origUrl}" alt="" /></div>
+      <div class="file-meta">
+        <div class="file-name">${entry.file.name}</div>
+        <div class="file-sizes" id="sizes-${entry.id}">${fmtBytes(entry.file.size)}</div>
+      </div>
+      <span class="badge badge-pending" id="badge-${entry.id}">pending</span>
+      <button class="card-dl-btn" id="dl-${entry.id}" disabled>⬇ Download</button>
+    </div>
+  `;
+        document.getElementById("file-list").appendChild(el);
+      }
+
+      function updateCard(entry) {
+        const card = document.getElementById("card-" + entry.id);
+        const badge = document.getElementById("badge-" + entry.id);
+        const sizes = document.getElementById("sizes-" + entry.id);
+        const dl = document.getElementById("dl-" + entry.id);
+        const prog = document.getElementById("prog-" + entry.id);
+        const r = entry.result;
+
+        if (entry.status === "processing") {
+          badge.className = "badge badge-processing";
+          badge.textContent = "converting…";
+          prog.style.width = "60%";
+          return;
+        }
+
+        if (entry.status === "done" && r) {
+          prog.style.width = "100%";
+          setTimeout(() => {
+            prog.style.opacity = "0";
+          }, 600);
+          card.classList.add("done");
+          const pct = r.savingsPercent;
+          let bc =
+            pct >= 40
+              ? "badge-done-great"
+              : pct >= 15
+                ? "badge-done-good"
+                : "badge-done-ok";
+          badge.className = `badge ${bc}`;
+          badge.textContent = `-${pct}%`;
+          sizes.innerHTML = `${r.originalSizeFmt} <span class="arrow">→</span> <span class="converted">${r.convertedSizeFmt}</span>`;
+          dl.disabled = false;
+          dl.onclick = () => triggerDownload(r.downloadUrl, r.convertedName);
+
+          // Preview
+          const prev = document.createElement("div");
+          prev.className = "preview-row";
+          prev.innerHTML = `
+      <div class="preview-pane">
+        <img src="${entry.origUrl}" alt="original" />
+        <span class="preview-tag tag-orig">Original</span>
+        <span class="preview-size">${r.originalSizeFmt}</span>
+      </div>
+      <div class="preview-divider"></div>
+      <div class="preview-pane">
+        <img src="/api/preview/${r.convertedName}" alt="webp" />
+        <span class="preview-tag tag-webp">WebP</span>
+        <span class="preview-size">${r.convertedSizeFmt}</span>
+      </div>
+    `;
+          card.appendChild(prev);
+        }
+
+        if (entry.status === "error") {
+          prog.style.width = "100%";
+          prog.style.background = "var(--red)";
+          setTimeout(() => {
+            prog.style.opacity = "0";
+          }, 600);
+          card.classList.add("error");
+          badge.className = "badge badge-error";
+          badge.textContent = "error";
+          const errEl = document.createElement("div");
+          errEl.className = "error-msg";
+          errEl.textContent = "✕  " + (entry.error || "Conversion failed.");
+          card.appendChild(errEl);
+        }
+      }
+
+      // ── Convert ───────────────────────────────────────────────────────────────────
+      const convertBtn = document.getElementById("convert-btn");
+      const dlAllBtn = document.getElementById("dl-all-btn");
+
+      convertBtn.addEventListener("click", convertAll);
+
+      async function convertAll() {
+        const pending = files.filter((f) => f.status === "pending");
+        if (!pending.length) {
+          showToast("Nothing to convert.", "error");
+          return;
+        }
+
+        convertBtn.disabled = true;
+        convertBtn.innerHTML = '<span class="spinner"></span>Converting…';
+
+        const form = new FormData();
+        pending.forEach((e) => form.append("images", e.file, e.file.name));
+        form.append("quality", qualitySlider.value);
+        form.append("lossless", losslessChk.checked ? "true" : "false");
+        form.append("effort", effortSlider.value);
+
+        const rw = document.getElementById("resize-w").value;
+        const rh = document.getElementById("resize-h").value;
+        if (enableResize.checked && (rw || rh)) {
+          form.append(
+            "resize",
+            JSON.stringify({
+              width: rw ? parseInt(rw) : undefined,
+              height: rh ? parseInt(rh) : undefined,
+              fit: "inside",
+            }),
+          );
+        }
+
+        // Mark all as processing
+        pending.forEach((e) => {
+          e.status = "processing";
+          updateCard(e);
+        });
+
+        try {
+          const res = await fetch("/api/convert", {
+            method: "POST",
+            body: form,
+          });
+          const data = await res.json();
+
+          if (!res.ok) throw new Error(data.error || "Server error");
+
+          data.results.forEach((r, i) => {
+            const entry = pending[i];
+            if (!entry) return;
+            if (r.status === "success") {
+              entry.status = "done";
+              entry.result = r;
+              convertedFiles.push(r);
+            } else {
+              entry.status = "error";
+              entry.error = r.error;
+            }
+            updateCard(entry);
+          });
+
+          // Update totals
+          totalConverted += data.successCount;
+          localStorage.setItem("totalConverted", totalConverted);
+          document.getElementById("total-converted").textContent =
+            totalConverted;
+
+          // ZIP button
+          if (data.batchDownloadUrl) {
+            dlAllBtn.disabled = false;
+            dlAllBtn.dataset.url = data.batchDownloadUrl;
+          }
+
+          updateStats();
+          showToast(
+            data.successCount === pending.length
+              ? `✓ ${data.successCount} image${data.successCount > 1 ? "s" : ""} converted · ${data.totalSavingsPercent}% smaller`
+              : `Converted ${data.successCount}/${pending.length} — ${data.errorCount} failed`,
+            data.errorCount === 0 ? "success" : "",
+          );
+        } catch (err) {
+          pending.forEach((e) => {
+            if (e.status === "processing") {
+              e.status = "error";
+              e.error = err.message;
+              updateCard(e);
+            }
+          });
+          showToast("Error: " + err.message, "error");
+        }
+
+        convertBtn.disabled = false;
+        convertBtn.innerHTML = "Convert All";
+      }
+
+      // ── Download ──────────────────────────────────────────────────────────────────
+      function triggerDownload(url, filename) {
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = filename || "converted.webp";
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+      }
+
+      dlAllBtn.addEventListener("click", () => {
+        const url = dlAllBtn.dataset.url;
+        if (url) triggerDownload(url, "converted-webp.zip");
+      });
+
+      document.getElementById("clear-btn").addEventListener("click", () => {
+        files.forEach((f) => URL.revokeObjectURL(f.origUrl));
+        files = [];
+        convertedFiles = [];
+        document.getElementById("file-list").innerHTML = "";
+        dlAllBtn.disabled = true;
+        dlAllBtn.dataset.url = "";
+        updateUI();
+        updateStats(true);
+      });
+
+      // ── Stats ─────────────────────────────────────────────────────────────────────
+      function updateStats(reset) {
+        if (reset) {
+          ["s-count", "s-orig", "s-conv", "s-pct"].forEach(
+            (id) => (document.getElementById(id).textContent = "—"),
+          );
+          return;
+        }
+        const done = files.filter((f) => f.status === "done" && f.result);
+        const totalO = done.reduce((a, f) => a + f.result.originalSize, 0);
+        const totalC = done.reduce((a, f) => a + f.result.convertedSize, 0);
+        document.getElementById("s-count").textContent = files.length;
+        document.getElementById("s-orig").textContent = totalO
+          ? fmtBytes(totalO)
+          : "—";
+        document.getElementById("s-conv").textContent = totalC
+          ? fmtBytes(totalC)
+          : "—";
+        document.getElementById("s-pct").textContent = totalO
+          ? "-" + (((totalO - totalC) / totalO) * 100).toFixed(1) + "%"
+          : "—";
+      }
+
+      function updateUI() {
+        const has = files.length > 0;
+        document.getElementById("stats-bar").style.display = has
+          ? "grid"
+          : "none";
+        document.getElementById("actions").style.display = has
+          ? "flex"
+          : "none";
+        document.getElementById("s-count").textContent = files.length;
+      }
+
+      // ── Utilities ─────────────────────────────────────────────────────────────────
+      function fmtBytes(b) {
+        if (b < 1024) return b + " B";
+        if (b < 1024 * 1024) return (b / 1024).toFixed(1) + " KB";
+        return (b / 1024 / 1024).toFixed(2) + " MB";
+      }
+
+      function showToast(msg, type) {
+        const t = document.getElementById("toast");
+        t.textContent = msg;
+        t.className = "toast " + (type || "");
+        requestAnimationFrame(() => {
+          t.classList.add("show");
+        });
+        clearTimeout(t._timer);
+        t._timer = setTimeout(() => t.classList.remove("show"), 4000);
+      }
+
+      // ── API Docs ──────────────────────────────────────────────────────────────────
+      function toggleEndpoint(header) {
+        const body = header.nextElementSibling;
+        body.classList.toggle("open");
+      }
+
+      function copyCode(id) {
+        const el = document.getElementById(id);
+        const btn = el.querySelector(".copy-btn");
+        const txt = el.textContent.replace("copy", "").trim();
+        navigator.clipboard.writeText(txt).then(() => {
+          btn.textContent = "✓ copied";
+          btn.style.color = "var(--green)";
+          setTimeout(() => {
+            btn.textContent = "copy";
+            btn.style.color = "";
+          }, 2000);
+        });
+      }
+    </script>
+  </body>
+</html>
